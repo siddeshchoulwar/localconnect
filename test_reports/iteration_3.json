@@ -1,0 +1,59 @@
+{
+  "summary": "Iteration 3 (MASSIVE expansion) tested end-to-end. Backend: 31/31 new iter3 pytest tests pass covering account-type signup split, location+Haversine, products CRUD with business/personal enforcement, nearby/offers filters, businesses list, events CRUD with going-toggle, auto-created notifications (like/comment/mention/follow), unread-count+read-all, multi-image posts, regex-escape search with products+businesses, denormalised follower counts, nearby/users. Frontend: signup personal/business toggle reveals business fields; notifications bell shows unread badge (e.g. '2' for Rohan); 5-tab BottomNav (Feed/Shops/Post/Events/Me) works; /shops renders OpenStreetMap Leaflet with shop markers, 8 category chips, Nearby toggle, hot-offers strip, shop rows; /events renders Leaflet with event markers, create-event btn, 'I'm in' buttons; /notifications lists notifs correctly. Regressions in prior iteration test files are all legitimate API-shape changes, not bugs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Profile.jsx / business redirect",
+        "issue": "Spec requires 'Profile page redirects business accounts to /shop/:id automatically'. Logged-in business user (rohan@demo.com) clicking nav-profile lands on /profile (personal-style Profile with 'EDIT PROFILE' button + 'OFFERS POSTED' counter) — NO redirect to /shop/<rohan_id>. Either redirect logic is missing or the spec intent was a unified business profile. Confirm with product requirement.",
+        "selector": "[data-testid='nav-profile']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/shops",
+        "issues": [
+          "React hydration warning: shop-row-{id} is a <Link> (renders <a>) and contains an inner <a href=tel:...> Call button — nested anchors are invalid HTML and throw two console warnings on /shops. Fix: change either the outer or inner anchor to a non-<a> element (e.g. wrap with onClick handler + useNavigate, or render Call as a <button onClick={() => window.location=tel:...}>)."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3.py",
+    "/app/test_reports/pytest/pytest_iteration3.xml"
+  ],
+  "action_items": [
+    "Decide on business-profile behaviour: either redirect business users from /profile to /shop/:id (as spec says) OR update spec to reflect the unified Profile variant currently shown.",
+    "Fix nested <a> in /app/frontend/src/pages/Shops.jsx — shop-row Link wraps a tel: <a>. Causes two React hydration warnings per render.",
+    "Iteration 2 regression tests (test_iteration2.py, test_localconnect.py) have 3 failures that are LEGITIMATE iter3 API changes, not bugs: (1) /users/{id}/followers endpoint has been removed (replaced by denormalised followers_count) → test_follow_toggle_and_counts assertion fails because endpoint returns 404 {detail:...}; (2) image_path (singular) replaced by image_paths (array) in Post model → test_create_post_with_image KeyError; (3) POST /posts with empty content now returns 400 (custom) instead of 422 (pydantic) because content became Optional to allow image-only posts. Update these three tests or delete the obsolete cases."
+  ],
+  "critical_code_review_comments": [
+    "server.py grew to 1162 lines — now urgently needs splitting into routers/auth.py, routers/posts.py, routers/users.py, routers/products.py, routers/events.py, routers/notifications.py, routers/upload.py, helpers/geo.py, helpers/mentions.py.",
+    "notify() is called via asyncio.create_task inside several endpoints — ensure exceptions inside the task are logged, otherwise dropped mentions/likes will silently fail without surfacing.",
+    "process_mentions matches by first-word of display name which is brittle (Aanya Sharma → @Aanya works but @AanyaSharma silently drops). Consider adopting @username handles or matching against normalised name with space-collapsing.",
+    "Shops.jsx — nested <a> inside <a> (shop-row Link + tel: link) produces hydration warnings; replace inner anchor with button(onClick=window.open(tel:...)).",
+    "LocationPrompt should be dismissable and persistently remembered — verify localStorage key is set so it does not re-appear on every refresh for users who explicitly skip.",
+    "/api/products and /api/events allow client to pass arbitrary image_path strings without ownership check — attacker with any uploaded path could claim another user's file as product image. Validate that the owner_id of the file matches current_user.id when referenced.",
+    "Search response now includes products & businesses — good — but result shape is a flat dict. For UI filtering/counters consider adding per-category counts.",
+    "serialize_user still issues one find_one per user when computing avatar + distance. For /nearby/users and /businesses which can return many docs, batch via $in aggregation.",
+    "Follow denormalisation (followers_count, following_count) correctly updated on toggle_follow; ensure an inconsistency-repair script exists (counter drift mitigation if a race condition deletes a user)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration3.py (NEW)"
+  ],
+  "success_rate": {
+    "backend": "100% on new iter3 suite (31/31). Combined: 66/69 (3 obsolete legacy tests listed under action_items).",
+    "frontend": "~95% — all 5 primary iter3 flows (shops+map, events+map, notifications, multi-account signup toggle, notifications bell/badge) verified. One functional gap: business→/shop redirect."
+  },
+  "test_credentials": "aanya@demo.com/demo123 (personal Koramangala 12.9352,77.6245), priya@demo.com/demo123 (personal Koramangala), kabir@demo.com/demo123 (personal Indiranagar 12.9716,77.6412), rohan@demo.com/demo123 (BUSINESS Brewberry Cafe 12.9340,77.6230), meera@demo.com/demo123 (BUSINESS FreshCart 15), vikram@demo.com/demo123 (BUSINESS Patel's Kitchen). Token in localStorage key 'lc_token'.",
+  "seed_data_creation": "Tests create TEST_ prefixed businesses, products, events, posts then delete most. 2-3 TEST_ business-signup accounts may remain in db.users collection. Rohan's location is explicitly re-set to 12.9340,77.6230 by test_ensure_seed_locations (matches original seed so no drift).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression suite now lives in 3 files: test_localconnect.py (iter1), test_iteration2.py (iter2), test_iteration3.py (iter3). Run all: pytest /app/backend/tests/ -v. The 3 failing legacy tests (test_follow_toggle_and_counts, test_create_post_with_image, test_create_post_empty_content) represent API-shape changes not bugs — either delete or update them. Frontend has complete data-testid coverage including nav-feed/shops/events/profile/create-btn, shops-list, shop-row-{id}, cat-{cat}, toggle-nearby-btn, offer-tile-{id}, events-list, event-card-{id}, create-event-btn, notif-list, notif-{id}, account-type-personal/business, signup-business-name-input, signup-business-category, signup-phone-input, shop-card, add-product-btn, product-card-{id}. Leaflet OpenStreetMap verified to render on /shops and /events (class .leaflet-container).",
+  "rca of the issue": "Business-profile-redirect: Profile.jsx likely returns the same component regardless of current_user.account_type. A useEffect that checks user.account_type === 'business' and calls navigate(`/shop/${user.id}`, {replace:true}) is missing, OR the spec should be relaxed to allow the current unified Profile view. Nested-anchor warning: Shops.jsx shop-row is a <Link> whose children include an <a href='tel:...'> which React/HTML forbids. Fix: change Call to <button type='button' onClick={(e)=>{e.stopPropagation(); window.location.href='tel:'+phone;}}> or re-architect the row to use useNavigate on a non-anchor wrapper."
+}

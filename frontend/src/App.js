@@ -1,7 +1,8 @@
 import React from "react";
 import "@/App.css";
+import "leaflet/dist/leaflet.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
@@ -10,7 +11,13 @@ import Profile from "@/pages/Profile";
 import EditProfile from "@/pages/EditProfile";
 import Explore from "@/pages/Explore";
 import Saved from "@/pages/Saved";
+import Shops from "@/pages/Shops";
+import BusinessDetail from "@/pages/BusinessDetail";
+import Events from "@/pages/Events";
+import Notifications from "@/pages/Notifications";
 import { Toaster } from "sonner";
+
+// Redirect /profile/:id to /shop/:id if the user is a business (handled in components instead)
 
 export default function App() {
   return (
@@ -22,6 +29,10 @@ export default function App() {
             <Route path="/signup" element={<Signup />} />
 
             <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
+            <Route path="/shops" element={<ProtectedRoute><Shops /></ProtectedRoute>} />
+            <Route path="/shop/:userId" element={<ProtectedRoute><BusinessDetail /></ProtectedRoute>} />
+            <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
             <Route path="/saved" element={<ProtectedRoute><Saved /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

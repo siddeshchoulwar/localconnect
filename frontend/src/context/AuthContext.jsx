@@ -4,7 +4,6 @@ import { api, formatApiErrorDetail } from "@/lib/api";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // null = checking, false = logged out, object = logged in
   const [user, setUser] = useState(null);
 
   const fetchMe = useCallback(async () => {
@@ -22,16 +21,14 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    fetchMe();
-  }, [fetchMe]);
+  useEffect(() => { fetchMe(); }, [fetchMe]);
 
   const login = async (email, password) => {
     try {
       const { data } = await api.post("/auth/login", { email, password });
       localStorage.setItem("lc_token", data.token);
       setUser(data.user);
-      return { ok: true };
+      return { ok: true, user: data.user };
     } catch (e) {
       return { ok: false, error: formatApiErrorDetail(e.response?.data?.detail) || e.message };
     }
@@ -42,7 +39,7 @@ export function AuthProvider({ children }) {
       const { data } = await api.post("/auth/signup", payload);
       localStorage.setItem("lc_token", data.token);
       setUser(data.user);
-      return { ok: true };
+      return { ok: true, user: data.user };
     } catch (e) {
       return { ok: false, error: formatApiErrorDetail(e.response?.data?.detail) || e.message };
     }
@@ -53,8 +50,18 @@ export function AuthProvider({ children }) {
     setUser(false);
   };
 
+  const updateLocation = async (lat, lng) => {
+    try {
+      const { data } = await api.post("/users/me/location", { lat, lng });
+      setUser(data);
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, refresh: fetchMe }}>
+    <AuthContext.Provider value={{ user, setUser, login, signup, logout, refresh: fetchMe, updateLocation }}>
       {children}
     </AuthContext.Provider>
   );

@@ -5,6 +5,7 @@ import PostCard from "@/components/PostCard";
 import CreatePostDialog from "@/components/CreatePostDialog";
 import CommentsSheet from "@/components/CommentsSheet";
 import StoriesBar from "@/components/StoriesBar";
+import LocationPrompt from "@/components/LocationPrompt";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2, MapPin, Sparkles, Inbox, Megaphone } from "lucide-react";
@@ -15,22 +16,20 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [commentsFor, setCommentsFor] = useState(null);
-  const [filter, setFilter] = useState("all"); // all | offers
+  const [filter, setFilter] = useState("all");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get("/posts");
       setPosts(data);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const onCreated = (post) => setPosts((prev) => [post, ...prev]);
-  const onDeleted = (postId) => setPosts((prev) => prev.filter((p) => p.id !== postId));
+  const onDeleted = (id) => setPosts((prev) => prev.filter((p) => p.id !== id));
   const onCommentsCountChange = (postId, count) =>
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments_count: count } : p)));
 
@@ -41,8 +40,8 @@ export default function Feed() {
     <div className="min-h-screen bg-[#FFFDF5] pb-28">
       <div className="max-w-2xl mx-auto">
         <TopBar />
+        <LocationPrompt />
 
-        {/* Area banner */}
         <div className="px-4 sm:px-6 mt-4">
           <div data-testid="area-banner" className="bg-[#C4A1FF] border-2 border-[#111111] brut-shadow p-4">
             <div className="flex items-start justify-between gap-3">
@@ -71,24 +70,11 @@ export default function Feed() {
 
         <StoriesBar onCreate={() => setCreateOpen(true)} />
 
-        {/* Filter tabs */}
         <div className="px-4 sm:px-6 mt-4 flex gap-2">
-          <button
-            onClick={() => setFilter("all")}
-            data-testid="filter-all-btn"
-            className={`flex items-center gap-1.5 border-2 border-[#111111] px-3 py-1.5 font-heading font-black text-[11px] uppercase tracking-wider brut-press ${
-              filter === "all" ? "bg-[#111111] text-[#FFE973]" : "bg-white"
-            }`}
-          >
+          <button onClick={() => setFilter("all")} data-testid="filter-all-btn" className={`flex items-center gap-1.5 border-2 border-[#111111] px-3 py-1.5 font-heading font-black text-[11px] uppercase tracking-wider brut-press ${filter === "all" ? "bg-[#111111] text-[#FFE973]" : "bg-white"}`}>
             <Sparkles size={12} strokeWidth={3} /> All
           </button>
-          <button
-            onClick={() => setFilter("offers")}
-            data-testid="filter-offers-btn"
-            className={`flex items-center gap-1.5 border-2 border-[#111111] px-3 py-1.5 font-heading font-black text-[11px] uppercase tracking-wider brut-press ${
-              filter === "offers" ? "bg-[#FFE973]" : "bg-white"
-            }`}
-          >
+          <button onClick={() => setFilter("offers")} data-testid="filter-offers-btn" className={`flex items-center gap-1.5 border-2 border-[#111111] px-3 py-1.5 font-heading font-black text-[11px] uppercase tracking-wider brut-press ${filter === "offers" ? "bg-[#FFE973]" : "bg-white"}`}>
             <Megaphone size={12} strokeWidth={3} /> Offers only
           </button>
         </div>
@@ -105,20 +91,13 @@ export default function Feed() {
                 {filter === "offers" ? "No offers yet" : "Quiet on this block"}
               </div>
               <p className="text-sm text-[#8A8A8A] font-medium">
-                {filter === "offers"
-                  ? "No offers live in your area right now."
-                  : <>Be the first to share something with <b>{user?.area}</b>.</>}
+                {filter === "offers" ? "No offers live in your area." : <>Be the first to share something with <b>{user?.area}</b>.</>}
               </p>
             </div>
           ) : (
             <div data-testid="feed-list">
               {filtered.map((p) => (
-                <PostCard
-                  key={p.id}
-                  post={p}
-                  onCommentsClick={(post) => setCommentsFor(post)}
-                  onDeleted={onDeleted}
-                />
+                <PostCard key={p.id} post={p} onCommentsClick={(post) => setCommentsFor(post)} onDeleted={onDeleted} />
               ))}
             </div>
           )}
@@ -131,12 +110,7 @@ export default function Feed() {
 
       <BottomNav onCreate={() => setCreateOpen(true)} />
       <CreatePostDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={onCreated} />
-      <CommentsSheet
-        post={commentsFor}
-        open={!!commentsFor}
-        onClose={() => setCommentsFor(null)}
-        onCountChange={onCommentsCountChange}
-      />
+      <CommentsSheet post={commentsFor} open={!!commentsFor} onClose={() => setCommentsFor(null)} onCountChange={onCommentsCountChange} />
     </div>
   );
 }

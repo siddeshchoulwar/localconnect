@@ -45,6 +45,13 @@ export default function Profile() {
 
   useEffect(() => { load(); }, [load]);
 
+  // If viewing a business profile, redirect to shop page
+  useEffect(() => {
+    if (profile && profile.account_type === "business" && userId) {
+      navigate(`/shop/${profile.id}`, { replace: true });
+    }
+  }, [profile, userId, navigate]);
+
   const onFollow = async () => {
     if (followBusy || !profile) return;
     setFollowBusy(true);
