@@ -64,7 +64,7 @@ export default function TopBar() {
           <div className="w-9 h-9 bg-[#FF5E5E] border-2 border-[#111111] brut-shadow-sm flex items-center justify-center">
             <MapPin size={18} strokeWidth={2.75} className="text-white" />
           </div>
-          <span className="font-heading font-black text-xl tracking-tighter hidden sm:block">local.</span>
+          <span className="font-heading font-black text-xl tracking-tighter hidden sm:block">LocalConnect</span>
         </Link>
 
         <div className="flex-1 relative">

@@ -43,7 +43,7 @@ MENTION_RE = re.compile(r"(?:^|\s)@([a-zA-Z][a-zA-Z0-9_]{1,30})")
 def get_jwt_secret() -> str:
     return os.environ["JWT_SECRET"]
 
-app = FastAPI(title="LocalConnect Lite API")
+app = FastAPI(title="LocalConnect API")
 api_router = APIRouter(prefix="/api")
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -1178,7 +1178,7 @@ async def serve_file(path: str, authorization: Optional[str] = Header(None), aut
 
 @api_router.get("/")
 async def root():
-    return {"message": "LocalConnect Lite API is running", "version": "3.0"}
+    return {"message": "LocalConnect API is running", "version": "3.1"}
 
 # --- Startup ---
 DEMO_AREA = "Koramangala"
