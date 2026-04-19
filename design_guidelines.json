@@ -1,0 +1,89 @@
+{
+  "theme": "light",
+  "archetype": "3 (Pastel & Soft) with E1 Neo-Brutalist Twist",
+  "typography": {
+    "heading_font": "Cabinet Grotesk",
+    "body_font": "DM Sans",
+    "heading_classes": "font-black tracking-tighter text-[#111111]",
+    "body_classes": "font-medium text-[#111111]",
+    "label_classes": "uppercase text-xs font-bold tracking-[0.2em]"
+  },
+  "colors": {
+    "background": "#FFFDF5",
+    "surface": "#FFFFFF",
+    "primary": "#FF5E5E",
+    "secondary": "#C4A1FF",
+    "offer_highlight": "#FFE973",
+    "text": "#111111",
+    "border": "#111111",
+    "muted": "#8A8A8A"
+  },
+  "layout_and_spacing": {
+    "container": "w-full max-w-lg mx-auto min-h-screen border-x-0 sm:border-x-2 border-[#111111] bg-[#FFFDF5] relative",
+    "padding": "p-4 sm:p-6",
+    "card_spacing": "gap-6",
+    "hard_shadow": "shadow-[4px_4px_0px_0px_#111111]",
+    "hard_shadow_hover": "hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#111111] transition-all"
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#FF5E5E] text-white border-2 border-[#111111] shadow-[4px_4px_0px_0px_#111111] font-bold py-3 px-6 rounded-none hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#111111] transition-all",
+      "secondary": "bg-[#C4A1FF] text-[#111111] border-2 border-[#111111] shadow-[4px_4px_0px_0px_#111111] font-bold py-3 px-6 rounded-none hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_#111111] transition-all"
+    },
+    "inputs": {
+      "default": "w-full border-2 border-[#111111] bg-white p-4 font-medium placeholder-[#8A8A8A] focus:outline-none focus:bg-[#FFFDF5] focus:shadow-[4px_4px_0px_0px_#111111] transition-all rounded-none"
+    },
+    "post_card": {
+      "normal": "bg-white border-2 border-[#111111] p-5 rounded-none shadow-[4px_4px_0px_0px_#111111] mb-6",
+      "offer": "bg-[#FFE973] border-2 border-[#111111] p-5 rounded-none shadow-[4px_4px_0px_0px_#111111] mb-6",
+      "tag": "bg-[#FF5E5E] text-white text-xs font-bold px-3 py-1 border-2 border-[#111111] uppercase tracking-wider inline-block mb-3"
+    },
+    "header": {
+      "container": "sticky top-0 z-50 bg-[#FFFDF5] border-b-2 border-[#111111] p-4 flex justify-between items-center"
+    }
+  },
+  "motion": {
+    "like_animation": "active:scale-150 transition-transform duration-200 cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+    "page_transition": "animate-in fade-in slide-in-from-bottom-4 duration-500"
+  },
+  "icons": {
+    "library": "lucide-react",
+    "stroke_width": 2.5
+  },
+  "media": {
+    "login_hero": {
+      "url": "https://images.unsplash.com/photo-1759245860566-fd63a7d9c7fb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwyfHxjb21tdW5pdHklMjBuZWlnaGJvcmhvb2QlMjBpbGx1c3RyYXRpb258ZW58MHx8fHwxNzc2NTg5NDgyfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Abstract colorful mural used as the background or hero image for the Login/Signup page to create an inviting local community vibe.",
+      "category": "hero"
+    },
+    "offer_placeholder": {
+      "url": "https://images.unsplash.com/photo-1642026465180-5e25255838e9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwxfHxsb2NhbCUyMGNvZmZlZSUyMHNob3AlMjBuZWlnaGJvcmhvb2R8ZW58MHx8fHwxNzc2NTg5NDgxfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Local coffee shop image, perfect for dummy 'Offer' posts to show local business context.",
+      "category": "content"
+    },
+    "avatars": [
+      {
+        "url": "https://images.unsplash.com/photo-1758272133833-3a2277d426e4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHw0fHxkaXZlcnNlJTIwcGVvcGxlJTIwc21pbGluZyUyMHBvcnRyYWl0fGVufDB8fHx8MTc3NjU4OTQ3MXww&ixlib=rb-4.1.0&q=85",
+        "category": "avatar"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1760574740271-55e6683afe76?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwyfHxkaXZlcnNlJTIwcGVvcGxlJTIwc21pbGluZyUyMHBvcnRyYWl0fGVufDB8fHx8MTc3NjU4OTQ3MXww&ixlib=rb-4.1.0&q=85",
+        "category": "avatar"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1758613171176-ea64579c2dcf?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwzfHxkaXZlcnNlJTIwcGVvcGxlJTIwc21pbGluZyUyMHBvcnRyYWl0fGVufDB8fHx8MTc3NjU4OTQ3MXww&ixlib=rb-4.1.0&q=85",
+        "category": "avatar"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Use Tailwind CSS with the defined color hex codes directly using arbitrary values or extending the theme.",
+    "The app has a Neo-Brutalist twist: heavy 2px black borders (#111111) and hard shadows (e.g. shadow-[4px_4px_0px_0px_#111111]) are MANDATORY on cards, buttons, and inputs.",
+    "Do not use generic border-radius (keep rounded-none or very small like rounded-sm) to maintain the brutalist raw feel.",
+    "The layout must be mobile-first. For desktop, contain the main feed within a max-w-lg container centered on the screen (resembling a mobile app frame) with a border on left and right.",
+    "Highlight 'Offer' posts explicitly by overriding the card background to the 'offer_highlight' color (#FFE973).",
+    "Ensure all interactive elements have data-testid attributes (e.g., data-testid='post-like-btn', data-testid='login-submit-btn').",
+    "Use Lucide-react for icons with strokeWidth={2.5} for bolder appearance.",
+    "Don't build complex real-time features; focus on a snappy, static UI feeling. Use dummy data using the provided avatars and placeholders if a backend isn't ready."
+  ]
+}
