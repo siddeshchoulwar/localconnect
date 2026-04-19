@@ -1,0 +1,59 @@
+{
+  "summary": "Iteration 2 (Instagram-style rewrite) tested end-to-end. Backend: 38/38 pytest tests pass (18 iter1 regression + 20 new iter2 tests covering upload/file-serve, profile update, follow/unfollow, save/bookmark, comments, delete post, explore, search, stories, image-attached posts). Frontend: all critical flows verified — login, TopBar search (debounced) with user result → profile navigation, follow toggle updating followers_count 0→1, StoriesBar rendering neighbours (Rohan+Priya) with gradient rings, feed filter tabs, PostCard with like/save/comments/menu, comments sheet add+list, create post dialog (normal + offer + image upload+preview), bottom-nav navigation to Feed/Explore/Saved/Profile, EditProfile bio save, post deletion via menu on own post, image served via ?auth= query param, logout.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Mobile viewport (390x844)",
+        "issues": [
+          "The preview environment's fixed bottom-right 'Made with Emergent' badge overlaps the CreatePostDialog submit button AND the right-side items of BottomNav (nav-saved, nav-profile). On desktop everything is fine. This is a preview-platform artifact (badge will not exist in production), but worth knowing for manual mobile testing. Consider bumping BottomNav bottom padding / dialog footer padding so the submit button sits above a safe-area inset of ~72px on small screens."
+        ]
+      },
+      {
+        "screen": "StoriesBar",
+        "issues": [
+          "On initial feed load for a brand-new user there is a brief flash of 'No neighbours yet' empty state before API resolves. Minor; consider skeleton placeholder."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_localconnect.py",
+    "/app/backend/tests/test_iteration2.py",
+    "/app/test_reports/pytest/pytest_iteration2.xml"
+  ],
+  "action_items": [
+    "(LOW) Add extra bottom padding / safe-area inset to CreatePostDialog footer and BottomNav so fixed preview badges don't overlap submit button on mobile (only affects preview environment).",
+    "(OPTIONAL) StoriesBar: render skeleton while /api/stories is loading instead of showing 'No neighbours' empty state."
+  ],
+  "critical_code_review_comments": [
+    "server.py is ~700 lines and mixes models, helpers, auth, and 10+ route groups in one file. Consider splitting into modules (routers/auth.py, routers/posts.py, routers/users.py, routers/upload.py) for maintainability.",
+    "/api/files/{path} reads the full object into memory then returns as Response — fine for 6MB limit but switch to StreamingResponse if limit grows.",
+    "serialize_user() does a count_documents() on every call including inside list endpoints (followers/following). For large follower counts this is O(N) per user fetched. Consider denormalising followers_count on the user doc and updating on follow toggle.",
+    "post_doc_to_out() also issues an extra find_one for author avatar on every post. For feeds of 200 posts that is 200 round-trips. Batch with $in or embed user_avatar_path in the post doc.",
+    "Search endpoint passes user-supplied q directly into a $regex without escaping — allows regex DoS (e.g. 'a.*a.*a.*...'). Escape with re.escape(q) before constructing the regex.",
+    "/api/files/{path} validates JWT but does NOT verify the file's owner_id against the token's user. Any authenticated user can fetch anyone's uploaded file by knowing the path. Acceptable for public social feed images, but worth an explicit decision.",
+    "FastAPI @app.on_event('startup'/'shutdown') is deprecated — migrate to lifespan context manager.",
+    "CORS allow_origins='*' with allow_credentials=True is spec-invalid. OK here because auth is header-based, but clean up for production.",
+    "EMERGENT_LLM_KEY used as bearer for object storage init — if init fails, upload returns 500 with generic 'Storage unavailable'. Log + surface a clearer error for diagnostics.",
+    "Bio max length (180) validated via Pydantic Field — good. But bio is Optional; a client could submit bio=null to clear. Currently handled correctly via `if payload.bio is not None`."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration2.py (NEW)"
+  ],
+  "success_rate": {
+    "backend": "100% (38/38)",
+    "frontend": "100% of critical flows verified on desktop; mobile blocked only by preview-env badge overlap (not a code bug)"
+  },
+  "test_credentials": "aanya@demo.com / demo123 (Koramangala), rohan@demo.com / demo123 (Koramangala), priya@demo.com / demo123 (Koramangala), kabir@demo.com / demo123 (Indiranagar). Token stored in localStorage key 'lc_token'.",
+  "seed_data_creation": "Test scripts create TEST_ prefixed users/posts/comments/uploads via public API. Name 'Aanya Sharma' is updated then restored in test_update_bio_and_propagate_name. Bio is updated to 'TEST bio iteration 2' by backend test and 'TEST bio ui final' by the frontend test — main agent may wish to reset via a seed reset if demo presentation matters.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression suites: /app/backend/tests/test_localconnect.py (iter1, 18 tests) + /app/backend/tests/test_iteration2.py (iter2, 20 tests). Run: pytest /app/backend/tests/ -v. Frontend testids are comprehensive. For mobile UI testing prefer 1280x900 or 768x1024 viewport in the preview env to bypass the fixed Emergent badge; on real production deploy mobile will work fine. Image rendering uses /api/files/{path}?auth=<token> — img.src includes auth query param, verified working.",
+  "rca of the issue": "No bugs to RCA — all backend endpoints and frontend integrations behaved as specified. The only noted concern is platform-badge overlap on mobile preview viewport which is not application code."
+}
