@@ -38,7 +38,7 @@ export default function Feed() {
   const offerCount = posts.filter((p) => p.type === "offer").length;
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-20">
+    <div className="min-h-screen bg-[#FFFDF5] pb-28">
       <div className="max-w-2xl mx-auto">
         <TopBar />
 

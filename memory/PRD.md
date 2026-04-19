@@ -1,68 +1,95 @@
 # LocalConnect Lite — PRD
 
 ## Problem Statement
-MVP hyperlocal social networking platform. Users from the same "area" (manually entered text) can post updates and see posts from others in the same area. Focus on simplicity for a college project MVP.
+Hyperlocal social networking platform. Users from the same "area" (text field) see and share posts within their neighbourhood. Evolved from a simple MVP into an Instagram/Threads-inspired social app (requested by user, iteration 2).
 
 ## Architecture
-- **Frontend**: React 19 + Tailwind + shadcn/ui + lucide-react + sonner (toasts)
-- **Backend**: FastAPI + Motor (MongoDB async) + PyJWT + bcrypt
-- **DB**: MongoDB (collections: `users`, `posts`)
-- **Auth**: JWT Bearer tokens in Authorization header, token stored in localStorage (`lc_token`)
+- **Frontend**: React 19 + Tailwind + shadcn/ui + lucide-react + sonner
+- **Backend**: FastAPI + Motor (async MongoDB) + PyJWT + bcrypt + requests (object storage)
+- **DB**: MongoDB (collections: `users`, `posts`, `comments`, `files`)
+- **Object Storage**: Emergent Object Storage via `EMERGENT_LLM_KEY` — stores avatars + post images
+- **Auth**: JWT Bearer tokens in Authorization header + `?auth=` query param for `<img>` downloads
 
 ## User Personas
-- **Community member** — wants to share local news, see neighbours' posts, like content.
-- **Local business / offer-poster** — wants to promote deals to people in the same neighbourhood.
+- **Neighbour** — shares news, recommendations, questions with area.
+- **Local business / creator** — posts offers, announcements, connects with customers.
+- **Explorer** — discovers trending content across nearby neighbourhoods.
 
-## Core Requirements (static)
-1. Signup/Login with name, email, password, area
-2. Feed shows posts ONLY from same area (case-insensitive match), sorted newest first
-3. Create posts of type `normal` or `offer` — offers highlighted visually
-4. Like button with count (toggle)
-5. Profile page with user info and their posts
+## Core Requirements
+1. Signup/Login (name, email, password, area)
+2. Area-based feed (only posts from same area, case-insensitive)
+3. Post types: `normal` + `offer` (offers highlighted yellow)
+4. Like, comment, bookmark, delete posts
+5. Image uploads on posts and avatars
+6. Follow/unfollow users
+7. Explore trending posts across all areas
+8. Search users, areas, and posts
+9. Edit profile (name, area, bio, avatar)
 
-## Implemented (2026-02)
-- ✅ JWT-based auth (signup, login, `/auth/me`)
-- ✅ Area-based feed with `area_key` for case-insensitive filtering
-- ✅ Create post (normal/offer) with 280-char limit
-- ✅ Like / unlike toggle (`liked_by` array)
-- ✅ Profile with stats (posts / likes / offers)
-- ✅ Protected routes + redirect to `/login`
-- ✅ Neo-brutalist UI (hard shadows, bold borders, warm cream palette)
-- ✅ Demo data seeded: 3 users + 5 posts in "Koramangala"
-- ✅ Toast notifications on post create
-- ✅ 18/18 backend pytest tests passing + all critical frontend flows verified
+## Implemented
+
+### Iteration 1 (2026-02)
+- JWT auth, area-based feed, Normal/Offer posts, likes, profile with stats.
+
+### Iteration 2 (2026-02) — Instagram/Threads rewrite
+- Object-storage image uploads (posts + avatars) with 6MB limit + MIME validation
+- Comments system with sheet-style UI
+- Follow/unfollow with follower/following counts
+- Bookmarks / Saved posts page
+- Stories bar (neighbours in same area, gradient rings for active)
+- Explore page (trending grid across all areas)
+- Global search (users + posts, debounced 280ms)
+- Edit profile with avatar upload
+- Post deletion (author only)
+- Double-tap-to-like on images
+- Bottom navigation (Feed / Explore / Post / Saved / Profile)
+- User bios (max 180 chars)
+- Feed filter (All / Offers only)
+- Instagram-style post cards (header, image, action row, caption, comments teaser)
+- 38/38 backend pytest tests passing + all critical frontend flows verified
 
 ## API Routes
-- `POST /api/auth/signup` `{name, email, password, area}` → `{token, user}`
-- `POST /api/auth/login` `{email, password}` → `{token, user}`
-- `GET /api/auth/me` → user
-- `GET /api/posts` → posts in caller's area
-- `POST /api/posts` `{content, type}` → post
-- `POST /api/posts/{id}/like` → `{post_id, likes, liked}`
-- `GET /api/users/{id}` → user
-- `GET /api/users/{id}/posts` → posts by user
+### Auth
+- `POST /api/auth/signup` · `POST /api/auth/login` · `GET /api/auth/me`
+
+### Users
+- `PATCH /api/users/me` (name, area, bio, avatar_path)
+- `GET /api/users/{id}` · `GET /api/users/{id}/posts`
+- `POST /api/users/{id}/follow` (toggle)
+- `GET /api/users/{id}/followers` · `/following`
+
+### Posts
+- `GET /api/posts` (area-filtered) · `POST /api/posts` · `DELETE /api/posts/{id}`
+- `POST /api/posts/{id}/like` · `POST /api/posts/{id}/save`
+- `GET /api/posts/{id}/comments` · `POST /api/posts/{id}/comments`
+- `GET /api/me/saved`
+
+### Discover
+- `GET /api/explore` · `GET /api/search?q=` · `GET /api/stories`
+
+### Files
+- `POST /api/upload` (multipart) · `GET /api/files/{path:path}?auth=<token>`
 
 ## Backlog (prioritised)
 **P1**
-- Post deletion for authors
-- Edit profile (change area, name)
-- Comments on posts
-- Search / filter (offers only, by keyword)
+- Notifications (likes/comments/follows) — lightweight in-app bell
+- Rich post images (multiple images / carousel)
+- Tag/mention other users (@name)
 
 **P2**
-- Pagination (beyond 200 posts)
-- Image uploads on posts
-- Follow neighbours / per-user notification badge
-- Trending posts (most liked)
-- Nearby areas (suggest adjacent neighbourhoods)
+- Suggested neighbours to follow
+- Nearby areas feed mix
+- Push notifications (web-push)
+- Activity feed / recent interactions
 
 **P3**
-- Pull-to-refresh on mobile
 - Dark theme toggle
-- Share post via link
-- Email verification
+- Email verification + password reset
+- Shareable post links (?p=<id>)
+- Post reporting + light moderation
 
 ## Next Tasks
-1. Decide whether to add image uploads (needs object storage integration) or comments next
-2. Polish: replace deprecated `@app.on_event` with FastAPI lifespan
-3. Add post-deletion endpoint + UI
+1. Pick between: notifications, multi-image carousel, or mentions — highest-impact next
+2. Denormalise `followers_count` on user doc for faster list endpoints (perf)
+3. Escape regex input in `/api/search` (ReDoS safety)
+4. Migrate `@app.on_event` → FastAPI lifespan context

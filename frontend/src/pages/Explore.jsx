@@ -29,7 +29,7 @@ export default function Explore() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] pb-20">
+    <div className="min-h-screen bg-[#FFFDF5] pb-28">
       <div className="max-w-2xl mx-auto">
         <TopBar />
 
