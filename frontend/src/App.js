@@ -15,6 +15,7 @@ import Shops from "@/pages/Shops";
 import BusinessDetail from "@/pages/BusinessDetail";
 import Events from "@/pages/Events";
 import Notifications from "@/pages/Notifications";
+import Friends from "@/pages/Friends";
 import { Toaster } from "sonner";
 
 // Redirect /profile/:id to /shop/:id if the user is a business (handled in components instead)
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/shop/:userId" element={<ProtectedRoute><BusinessDetail /></ProtectedRoute>} />
             <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+            <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
             <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
             <Route path="/saved" element={<ProtectedRoute><Saved /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

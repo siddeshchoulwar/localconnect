@@ -110,15 +110,38 @@ export default function TopBar() {
                 <div>
                   <div className="px-3 pt-3 pb-1 text-[10px] font-black tracking-[0.25em] uppercase text-[#8A8A8A] border-t-2 border-[#111111]">People</div>
                   {results.users.map((u) => (
-                    <button key={u.id} onClick={() => { navigate(u.account_type === "business" ? `/shop/${u.id}` : `/profile/${u.id}`); close(); }} className="w-full text-left flex items-center gap-3 p-3 hover:bg-[#FFFDF5] border-t border-[#111111]/10" data-testid={`search-user-${u.id}`}>
-                      <Avatar name={u.name} path={u.avatar_path} size={40} />
-                      <div className="min-w-0 flex-1">
-                        <div className="font-heading font-black text-sm truncate">{u.name}</div>
-                        <div className="text-[11px] text-[#8A8A8A] font-semibold flex items-center gap-1">
-                          <MapPin size={10} strokeWidth={2.75} /> {u.area}{u.distance_km != null && ` · ${formatDistance(u.distance_km)}`}
+                    <div key={u.id} className="flex items-center gap-3 p-3 border-t border-[#111111]/10" data-testid={`search-user-row-${u.id}`}>
+                      <button onClick={() => { navigate(u.account_type === "business" ? `/shop/${u.id}` : `/profile/${u.id}`); close(); }} className="flex items-center gap-3 flex-1 min-w-0 hover:bg-[#FFFDF5] text-left" data-testid={`search-user-${u.id}`}>
+                        <Avatar name={u.name} path={u.avatar_path} size={40} />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-heading font-black text-sm truncate">{u.name}</div>
+                          <div className="text-[11px] text-[#8A8A8A] font-semibold flex items-center gap-1">
+                            <MapPin size={10} strokeWidth={2.75} /> {u.area}{u.distance_km != null && ` · ${formatDistance(u.distance_km)}`}
+                          </div>
                         </div>
-                      </div>
-                    </button>
+                      </button>
+                      {u.friendship_status === "none" && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await api.post(`/users/${u.id}/friend-request`);
+                              setResults((r) => ({ ...r, users: r.users.map((x) => x.id === u.id ? { ...x, friendship_status: "pending_out" } : x) }));
+                            } catch {}
+                          }}
+                          data-testid={`search-add-friend-${u.id}`}
+                          className="bg-[#FF5E5E] text-white border-2 border-[#111111] brut-press font-heading font-black text-[10px] uppercase tracking-wider px-2 py-1 shrink-0"
+                        >
+                          + Friend
+                        </button>
+                      )}
+                      {u.friendship_status === "pending_out" && (
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[#8A8A8A] shrink-0">Sent</span>
+                      )}
+                      {u.friendship_status === "friends" && (
+                        <span className="text-[10px] font-black uppercase tracking-wider text-[#FF5E5E] shrink-0">Friends</span>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

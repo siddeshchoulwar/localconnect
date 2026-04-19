@@ -154,6 +154,8 @@ class UserOut(BaseModel):
     followers_count: int = 0
     following_count: int = 0
     is_following: bool = False
+    friendship_status: str = "none"  # self | friends | pending_out | pending_in | none
+    friends_count: int = 0
     distance_km: Optional[float] = None
 
 class AuthResponse(BaseModel):
@@ -195,6 +197,23 @@ class FollowResponse(BaseModel):
     user_id: str
     following: bool
     followers_count: int
+
+class FriendRequestOut(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    from_user_id: str
+    from_user_name: str
+    from_user_avatar_path: Optional[str] = None
+    to_user_id: str
+    to_user_name: str
+    status: str
+    created_at: datetime
+
+class FriendStatusResponse(BaseModel):
+    user_id: str
+    friendship_status: str
+    request_id: Optional[str] = None
+    friends_count: Optional[int] = None
 
 class CommentCreate(BaseModel):
     content: str = Field(..., min_length=1, max_length=300)
@@ -334,6 +353,29 @@ async def serialize_user(doc: dict, viewer_id: Optional[str] = None, viewer_loc:
     distance_km = None
     if viewer_loc and doc.get("lat") is not None and doc.get("lng") is not None:
         distance_km = round(haversine_km(viewer_loc["lat"], viewer_loc["lng"], doc["lat"], doc["lng"]), 2)
+    # Friendship status
+    fstatus = "none"
+    if not viewer_id:
+        fstatus = "none"
+    elif viewer_id == doc["id"]:
+        fstatus = "self"
+    else:
+        f = await db.friendships.find_one({"users": {"$all": [viewer_id, doc["id"]]}})
+        if f:
+            fstatus = "friends"
+        else:
+            out_req = await db.friend_requests.find_one(
+                {"from_user_id": viewer_id, "to_user_id": doc["id"], "status": "pending"}
+            )
+            if out_req:
+                fstatus = "pending_out"
+            else:
+                in_req = await db.friend_requests.find_one(
+                    {"from_user_id": doc["id"], "to_user_id": viewer_id, "status": "pending"}
+                )
+                if in_req:
+                    fstatus = "pending_in"
+    friends_count = await db.friendships.count_documents({"users": doc["id"]})
     return {
         "id": doc["id"],
         "name": doc["name"],
@@ -352,6 +394,8 @@ async def serialize_user(doc: dict, viewer_id: Optional[str] = None, viewer_loc:
         "followers_count": doc.get("followers_count", 0),
         "following_count": doc.get("following_count", 0),
         "is_following": is_following,
+        "friendship_status": fstatus,
+        "friends_count": friends_count,
         "distance_km": distance_km,
     }
 
@@ -523,6 +567,154 @@ async def toggle_follow(user_id: str, current_user: dict = Depends(get_current_u
         await notify(user_id, "follow", current_user["id"], f"{current_user['name']} started following you")
     fresh = await db.users.find_one({"id": user_id}, {"followers_count": 1, "_id": 0})
     return FollowResponse(user_id=user_id, following=is_following, followers_count=fresh.get("followers_count", 0))
+
+# --- Friends ---
+async def _create_friendship(a: str, b: str):
+    users_sorted = sorted([a, b])
+    existing = await db.friendships.find_one({"users": users_sorted})
+    if existing:
+        return
+    await db.friendships.insert_one({
+        "id": str(uuid.uuid4()),
+        "users": users_sorted,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+@api_router.post("/users/{user_id}/friend-request", response_model=FriendStatusResponse)
+async def send_friend_request(user_id: str, current_user: dict = Depends(get_current_user)):
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="Cannot friend yourself")
+    target = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "name": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    # Already friends?
+    existing = await db.friendships.find_one({"users": {"$all": [current_user["id"], user_id]}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Already friends")
+    # Already sent?
+    out = await db.friend_requests.find_one({"from_user_id": current_user["id"], "to_user_id": user_id, "status": "pending"})
+    if out:
+        raise HTTPException(status_code=400, detail="Request already sent")
+    # Incoming from target? Auto-accept.
+    inreq = await db.friend_requests.find_one({"from_user_id": user_id, "to_user_id": current_user["id"], "status": "pending"})
+    if inreq:
+        await db.friend_requests.update_one({"id": inreq["id"]}, {"$set": {"status": "accepted"}})
+        await _create_friendship(current_user["id"], user_id)
+        await notify(user_id, "friend_accept", current_user["id"],
+                     f"{current_user['name']} accepted your friend request")
+        fcount = await db.friendships.count_documents({"users": current_user["id"]})
+        return FriendStatusResponse(user_id=user_id, friendship_status="friends", friends_count=fcount)
+    req_id = str(uuid.uuid4())
+    await db.friend_requests.insert_one({
+        "id": req_id,
+        "from_user_id": current_user["id"],
+        "to_user_id": user_id,
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    await notify(user_id, "friend_request", current_user["id"],
+                 f"{current_user['name']} sent you a friend request")
+    return FriendStatusResponse(user_id=user_id, friendship_status="pending_out", request_id=req_id)
+
+@api_router.post("/friend-requests/{req_id}/accept", response_model=FriendStatusResponse)
+async def accept_friend_request(req_id: str, current_user: dict = Depends(get_current_user)):
+    req = await db.friend_requests.find_one({"id": req_id, "to_user_id": current_user["id"], "status": "pending"})
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    await db.friend_requests.update_one({"id": req_id}, {"$set": {"status": "accepted"}})
+    await _create_friendship(current_user["id"], req["from_user_id"])
+    await notify(req["from_user_id"], "friend_accept", current_user["id"],
+                 f"{current_user['name']} accepted your friend request")
+    fcount = await db.friendships.count_documents({"users": current_user["id"]})
+    return FriendStatusResponse(user_id=req["from_user_id"], friendship_status="friends", friends_count=fcount)
+
+@api_router.post("/friend-requests/{req_id}/reject", response_model=FriendStatusResponse)
+async def reject_friend_request(req_id: str, current_user: dict = Depends(get_current_user)):
+    req = await db.friend_requests.find_one({"id": req_id, "to_user_id": current_user["id"], "status": "pending"})
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    await db.friend_requests.update_one({"id": req_id}, {"$set": {"status": "rejected"}})
+    return FriendStatusResponse(user_id=req["from_user_id"], friendship_status="none")
+
+@api_router.delete("/friend-requests/{req_id}", response_model=FriendStatusResponse)
+async def cancel_friend_request(req_id: str, current_user: dict = Depends(get_current_user)):
+    req = await db.friend_requests.find_one({"id": req_id, "from_user_id": current_user["id"], "status": "pending"})
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    await db.friend_requests.delete_one({"id": req_id})
+    return FriendStatusResponse(user_id=req["to_user_id"], friendship_status="none")
+
+@api_router.delete("/friends/{user_id}", response_model=FriendStatusResponse)
+async def unfriend(user_id: str, current_user: dict = Depends(get_current_user)):
+    await db.friendships.delete_one({"users": {"$all": [current_user["id"], user_id]}})
+    await db.friend_requests.delete_many({
+        "$or": [
+            {"from_user_id": current_user["id"], "to_user_id": user_id},
+            {"from_user_id": user_id, "to_user_id": current_user["id"]},
+        ]
+    })
+    fcount = await db.friendships.count_documents({"users": current_user["id"]})
+    return FriendStatusResponse(user_id=user_id, friendship_status="none", friends_count=fcount)
+
+@api_router.get("/friends", response_model=List[UserOut])
+async def list_my_friends(current_user: dict = Depends(get_current_user)):
+    cursor = db.friendships.find({"users": current_user["id"]}, {"_id": 0}).sort("created_at", -1).limit(500)
+    friendships = await cursor.to_list(500)
+    friend_ids = []
+    for f in friendships:
+        other = [u for u in f["users"] if u != current_user["id"]]
+        friend_ids.extend(other)
+    if not friend_ids:
+        return []
+    users = await db.users.find({"id": {"$in": friend_ids}}, {"_id": 0, "password_hash": 0}).to_list(500)
+    viewer_loc = {"lat": current_user["lat"], "lng": current_user["lng"]} if current_user.get("lat") is not None else None
+    return [UserOut(**(await serialize_user(u, current_user["id"], viewer_loc))) for u in users]
+
+@api_router.get("/friend-requests/incoming", response_model=List[FriendRequestOut])
+async def incoming_friend_requests(current_user: dict = Depends(get_current_user)):
+    cursor = db.friend_requests.find(
+        {"to_user_id": current_user["id"], "status": "pending"}, {"_id": 0}
+    ).sort("created_at", -1).limit(200)
+    reqs = await cursor.to_list(200)
+    out = []
+    for r in reqs:
+        from_u = await db.users.find_one({"id": r["from_user_id"]}, {"_id": 0, "name": 1, "avatar_path": 1})
+        to_u = await db.users.find_one({"id": r["to_user_id"]}, {"_id": 0, "name": 1})
+        out.append(FriendRequestOut(
+            id=r["id"], from_user_id=r["from_user_id"],
+            from_user_name=(from_u or {}).get("name", "Unknown"),
+            from_user_avatar_path=(from_u or {}).get("avatar_path"),
+            to_user_id=r["to_user_id"],
+            to_user_name=(to_u or {}).get("name", ""),
+            status=r["status"], created_at=to_iso(r["created_at"]),
+        ))
+    return out
+
+@api_router.get("/friend-requests/outgoing", response_model=List[FriendRequestOut])
+async def outgoing_friend_requests(current_user: dict = Depends(get_current_user)):
+    cursor = db.friend_requests.find(
+        {"from_user_id": current_user["id"], "status": "pending"}, {"_id": 0}
+    ).sort("created_at", -1).limit(200)
+    reqs = await cursor.to_list(200)
+    out = []
+    for r in reqs:
+        from_u = await db.users.find_one({"id": r["from_user_id"]}, {"_id": 0, "name": 1, "avatar_path": 1})
+        to_u = await db.users.find_one({"id": r["to_user_id"]}, {"_id": 0, "name": 1, "avatar_path": 1})
+        out.append(FriendRequestOut(
+            id=r["id"], from_user_id=r["from_user_id"],
+            from_user_name=(from_u or {}).get("name", ""),
+            from_user_avatar_path=(from_u or {}).get("avatar_path"),
+            to_user_id=r["to_user_id"],
+            to_user_name=(to_u or {}).get("name", "Unknown"),
+            status=r["status"], created_at=to_iso(r["created_at"]),
+        ))
+    return out
+
+@api_router.get("/friend-requests/counts")
+async def friend_request_counts(current_user: dict = Depends(get_current_user)):
+    incoming = await db.friend_requests.count_documents({"to_user_id": current_user["id"], "status": "pending"})
+    outgoing = await db.friend_requests.count_documents({"from_user_id": current_user["id"], "status": "pending"})
+    return {"incoming": incoming, "outgoing": outgoing}
 
 # --- Posts ---
 @api_router.post("/posts", response_model=PostOut)
@@ -1064,6 +1256,9 @@ async def on_startup():
     await db.products.create_index("category")
     await db.events.create_index("area_key")
     await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
+    await db.friendships.create_index("users")
+    await db.friend_requests.create_index([("to_user_id", 1), ("status", 1)])
+    await db.friend_requests.create_index([("from_user_id", 1), ("status", 1)])
 
     # Idempotent backfills
     await db.users.update_many({"bio": {"$exists": False}}, {"$set": {"bio": ""}})
@@ -1125,6 +1320,26 @@ async def on_startup():
                 "name": name, "description": desc, "price": float(price),
                 "image_path": None, "category": cat,
                 "is_offer": is_offer, "is_available": True,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+
+    # Seed demo friendships: Aanya ↔ Priya friends; Kabir → Aanya pending request
+    if await db.friendships.count_documents({}) == 0 and await db.friend_requests.count_documents({}) == 0:
+        aanya = await db.users.find_one({"email": "aanya@demo.com"})
+        priya = await db.users.find_one({"email": "priya@demo.com"})
+        kabir = await db.users.find_one({"email": "kabir@demo.com"})
+        if aanya and priya:
+            await db.friendships.insert_one({
+                "id": str(uuid.uuid4()),
+                "users": sorted([aanya["id"], priya["id"]]),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+        if aanya and kabir:
+            await db.friend_requests.insert_one({
+                "id": str(uuid.uuid4()),
+                "from_user_id": kabir["id"],
+                "to_user_id": aanya["id"],
+                "status": "pending",
                 "created_at": datetime.now(timezone.utc).isoformat(),
             })
 

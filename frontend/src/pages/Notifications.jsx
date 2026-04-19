@@ -5,13 +5,15 @@ import BottomNav from "@/components/BottomNav";
 import Avatar from "@/components/Avatar";
 import { api } from "@/lib/api";
 import { timeAgo } from "@/lib/utils-social";
-import { Loader2, Heart, MessageCircle, UserPlus, AtSign, Bell } from "lucide-react";
+import { Loader2, Heart, MessageCircle, UserPlus, AtSign, Bell, UserCheck, Users } from "lucide-react";
 
 const ICON = {
   like: <Heart size={14} strokeWidth={3} className="text-[#FF5E5E]" fill="currentColor" />,
   comment: <MessageCircle size={14} strokeWidth={3} className="text-[#FF5E5E]" />,
   follow: <UserPlus size={14} strokeWidth={3} className="text-[#FF5E5E]" />,
   mention: <AtSign size={14} strokeWidth={3} className="text-[#FF5E5E]" />,
+  friend_request: <Users size={14} strokeWidth={3} className="text-[#FF5E5E]" />,
+  friend_accept: <UserCheck size={14} strokeWidth={3} className="text-[#FF5E5E]" />,
 };
 
 export default function Notifications() {
@@ -58,14 +60,14 @@ export default function Notifications() {
           ) : (
             <div className="space-y-2" data-testid="notif-list">
               {items.map((n) => {
-                const onClick = () => {
-                  if (n.target_post_id) navigate("/feed");
-                  else if (n.actor_id) navigate(`/profile/${n.actor_id}`);
-                };
                 return (
                   <button
                     key={n.id}
-                    onClick={onClick}
+                    onClick={() => {
+                      if (n.type === "friend_request" || n.type === "friend_accept") navigate("/friends");
+                      else if (n.target_post_id) navigate("/feed");
+                      else if (n.actor_id) navigate(`/profile/${n.actor_id}`);
+                    }}
                     data-testid={`notif-${n.id}`}
                     className={`w-full text-left flex items-center gap-3 border-2 border-[#111111] p-3 brut-shadow-sm brut-press ${n.read ? "bg-white" : "bg-[#FFE973]"}`}
                   >

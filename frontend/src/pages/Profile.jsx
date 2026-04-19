@@ -9,7 +9,7 @@ import Avatar from "@/components/Avatar";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { shortCount } from "@/lib/utils-social";
-import { Loader2, MapPin, UserPlus, UserCheck, Pencil, Grid3x3, Heart, Megaphone } from "lucide-react";
+import { Loader2, MapPin, UserPlus, UserCheck, Pencil, Grid3x3, Heart, Megaphone, Users, UserMinus, Clock, Check, PlusSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
@@ -24,6 +24,7 @@ export default function Profile() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [followBusy, setFollowBusy] = useState(false);
+  const [friendBusy, setFriendBusy] = useState(false);
   const [tab, setTab] = useState("posts");
   const [commentsFor, setCommentsFor] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -68,6 +69,47 @@ export default function Profile() {
     }
   };
 
+  const onFriendAction = async () => {
+    if (friendBusy || !profile) return;
+    setFriendBusy(true);
+    try {
+      const s = profile.friendship_status;
+      if (s === "none") {
+        const { data } = await api.post(`/users/${profile.id}/friend-request`);
+        setProfile((p) => ({ ...p, friendship_status: data.friendship_status }));
+        toast.success(data.friendship_status === "friends" ? "You're now friends!" : "Friend request sent");
+      } else if (s === "pending_out") {
+        // find & cancel outgoing
+        const { data } = await api.get("/friend-requests/outgoing");
+        const req = data.find((r) => r.to_user_id === profile.id);
+        if (req) await api.delete(`/friend-requests/${req.id}`);
+        setProfile((p) => ({ ...p, friendship_status: "none" }));
+        toast("Request cancelled");
+      } else if (s === "pending_in") {
+        // find & accept
+        const { data } = await api.get("/friend-requests/incoming");
+        const req = data.find((r) => r.from_user_id === profile.id);
+        if (req) {
+          await api.post(`/friend-requests/${req.id}/accept`);
+          setProfile((p) => ({ ...p, friendship_status: "friends", friends_count: (p.friends_count || 0) + 1 }));
+          toast.success(`You and ${profile.name} are now friends`);
+        }
+      } else if (s === "friends") {
+        if (!window.confirm(`Remove ${profile.name} from friends?`)) {
+          setFriendBusy(false);
+          return;
+        }
+        await api.delete(`/friends/${profile.id}`);
+        setProfile((p) => ({ ...p, friendship_status: "none", friends_count: Math.max(0, (p.friends_count || 0) - 1) }));
+        toast("Removed from friends");
+      }
+    } catch (e) {
+      toast.error("Action failed");
+    } finally {
+      setFriendBusy(false);
+    }
+  };
+
   const totalLikes = posts.reduce((a, p) => a + (p.likes || 0), 0);
   const offers = posts.filter((p) => p.type === "offer").length;
 
@@ -109,11 +151,19 @@ export default function Profile() {
             </div>
 
             {/* Stats row */}
-            <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="grid grid-cols-4 gap-2 mt-4">
               <div className="bg-[#FFFDF5] border-2 border-[#111111] p-2 text-center">
                 <div className="font-heading font-black text-lg leading-none" data-testid="profile-stat-posts">{posts.length}</div>
                 <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8A8A8A] mt-1">Posts</div>
               </div>
+              <button
+                onClick={() => isMe && navigate("/friends")}
+                data-testid="profile-stat-friends"
+                className={`bg-[#FFE973] border-2 border-[#111111] p-2 text-center ${isMe ? "brut-press" : ""}`}
+              >
+                <div className="font-heading font-black text-lg leading-none">{shortCount(profile.friends_count)}</div>
+                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#111111]/70 mt-1">Friends</div>
+              </button>
               <div className="bg-[#FFFDF5] border-2 border-[#111111] p-2 text-center">
                 <div className="font-heading font-black text-lg leading-none" data-testid="profile-stat-followers">
                   {shortCount(profile.followers_count)}
@@ -128,28 +178,63 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* Action button */}
+            {/* Action buttons */}
             <div className="mt-4">
               {isMe ? (
-                <button
-                  onClick={() => navigate("/profile/edit")}
-                  data-testid="edit-profile-btn"
-                  className="w-full bg-white text-[#111111] border-2 border-[#111111] brut-press font-heading font-black uppercase tracking-wider text-sm py-2.5 flex items-center justify-center gap-2"
-                >
-                  <Pencil size={14} strokeWidth={2.75} /> Edit profile
-                </button>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => navigate("/profile/edit")}
+                    data-testid="edit-profile-btn"
+                    className="bg-white text-[#111111] border-2 border-[#111111] brut-press font-heading font-black uppercase tracking-wider text-[11px] py-2 flex items-center justify-center gap-1.5"
+                  >
+                    <Pencil size={12} strokeWidth={2.75} /> Edit
+                  </button>
+                  <button
+                    onClick={() => setCreateOpen(true)}
+                    data-testid="profile-new-post-btn"
+                    className="bg-[#FF5E5E] text-white border-2 border-[#111111] brut-shadow-sm brut-press font-heading font-black uppercase tracking-wider text-[11px] py-2 flex items-center justify-center gap-1.5"
+                  >
+                    <PlusSquare size={12} strokeWidth={2.75} /> Post
+                  </button>
+                  <button
+                    onClick={() => navigate("/friends")}
+                    data-testid="profile-friends-btn"
+                    className="bg-[#C4A1FF] border-2 border-[#111111] brut-press font-heading font-black uppercase tracking-wider text-[11px] py-2 flex items-center justify-center gap-1.5"
+                  >
+                    <Users size={12} strokeWidth={2.75} /> Friends
+                  </button>
+                </div>
               ) : (
-                <button
-                  onClick={onFollow}
-                  disabled={followBusy}
-                  data-testid="follow-btn"
-                  className={`w-full border-2 border-[#111111] brut-shadow brut-press font-heading font-black uppercase tracking-wider text-sm py-2.5 flex items-center justify-center gap-2 ${
-                    profile.is_following ? "bg-white text-[#111111]" : "bg-[#FF5E5E] text-white"
-                  }`}
-                >
-                  {followBusy ? <Loader2 size={14} className="animate-spin" /> : profile.is_following ? <UserCheck size={14} strokeWidth={3} /> : <UserPlus size={14} strokeWidth={3} />}
-                  {profile.is_following ? "Following" : "Follow"}
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  {(() => {
+                    const s = profile.friendship_status;
+                    const label = s === "friends" ? "Friends" : s === "pending_out" ? "Cancel" : s === "pending_in" ? "Accept" : "Add friend";
+                    const Icon = s === "friends" ? UserMinus : s === "pending_out" ? Clock : s === "pending_in" ? Check : UserPlus;
+                    const bg = s === "friends" ? "bg-white" : s === "pending_out" ? "bg-white" : s === "pending_in" ? "bg-[#FFE973]" : "bg-[#C4A1FF]";
+                    return (
+                      <button
+                        onClick={onFriendAction}
+                        disabled={friendBusy}
+                        data-testid="friend-action-btn"
+                        className={`${bg} border-2 border-[#111111] brut-shadow brut-press font-heading font-black uppercase tracking-wider text-sm py-2.5 flex items-center justify-center gap-2`}
+                      >
+                        {friendBusy ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} strokeWidth={3} />}
+                        {label}
+                      </button>
+                    );
+                  })()}
+                  <button
+                    onClick={onFollow}
+                    disabled={followBusy}
+                    data-testid="follow-btn"
+                    className={`border-2 border-[#111111] brut-shadow brut-press font-heading font-black uppercase tracking-wider text-sm py-2.5 flex items-center justify-center gap-2 ${
+                      profile.is_following ? "bg-white text-[#111111]" : "bg-[#FF5E5E] text-white"
+                    }`}
+                  >
+                    {followBusy ? <Loader2 size={14} className="animate-spin" /> : profile.is_following ? <UserCheck size={14} strokeWidth={3} /> : <UserPlus size={14} strokeWidth={3} />}
+                    {profile.is_following ? "Following" : "Follow"}
+                  </button>
+                </div>
               )}
             </div>
           </div>
