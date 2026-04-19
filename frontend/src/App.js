@@ -46,7 +46,7 @@ export default function App() {
           </Routes>
         </BrowserRouter>
         <Toaster
-          position="top-center"
+          position="bottom-center"
           toastOptions={{
             style: {
               border: "2px solid #111111",
