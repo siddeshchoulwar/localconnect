@@ -45,12 +45,12 @@ export default function Profile() {
 
   useEffect(() => { load(); }, [load]);
 
-  // If viewing a business profile, redirect to shop page
+  // Business accounts: redirect to /shop/:id always (own profile + viewing others)
   useEffect(() => {
-    if (profile && profile.account_type === "business" && userId) {
+    if (!loading && profile && profile.account_type === "business") {
       navigate(`/shop/${profile.id}`, { replace: true });
     }
-  }, [profile, userId, navigate]);
+  }, [loading, profile, navigate]);
 
   const onFollow = async () => {
     if (followBusy || !profile) return;

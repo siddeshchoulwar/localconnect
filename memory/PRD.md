@@ -1,95 +1,104 @@
 # LocalConnect Lite — PRD
 
 ## Problem Statement
-Hyperlocal social networking platform. Users from the same "area" (text field) see and share posts within their neighbourhood. Evolved from a simple MVP into an Instagram/Threads-inspired social app (requested by user, iteration 2).
+Hyperlocal super-app combining Instagram-style social feed (personal) with Blinkit/Zomato-style business directory (shops & offers) + community events — all connected within a **5 km radius** using OpenStreetMap.
 
 ## Architecture
-- **Frontend**: React 19 + Tailwind + shadcn/ui + lucide-react + sonner
-- **Backend**: FastAPI + Motor (async MongoDB) + PyJWT + bcrypt + requests (object storage)
-- **DB**: MongoDB (collections: `users`, `posts`, `comments`, `files`)
-- **Object Storage**: Emergent Object Storage via `EMERGENT_LLM_KEY` — stores avatars + post images
-- **Auth**: JWT Bearer tokens in Authorization header + `?auth=` query param for `<img>` downloads
+- **Frontend**: React 19 + Tailwind + shadcn/ui + lucide-react + sonner + **react-leaflet + OpenStreetMap** (free, no API key)
+- **Backend**: FastAPI + Motor (async MongoDB) + PyJWT + bcrypt + requests
+- **DB**: MongoDB — `users`, `posts`, `comments`, `products`, `events`, `notifications`, `files`
+- **Object Storage**: Emergent Object Storage (avatars, shop banners, post/product/event images)
+- **Auth**: JWT Bearer tokens (localStorage `lc_token`); `?auth=` query param for `<img>` downloads
+- **Geolocation**: Browser Geolocation API + Haversine distance (5 km default radius)
 
 ## User Personas
-- **Neighbour** — shares news, recommendations, questions with area.
-- **Local business / creator** — posts offers, announcements, connects with customers.
-- **Explorer** — discovers trending content across nearby neighbourhoods.
+- **Neighbour** — shares/discovers life in the block (social feed + events).
+- **Local business** — lists products/offers, builds a following, connects with nearby customers.
+- **Event organiser** — posts meetups, cleanups, concerts, community events.
 
-## Core Requirements
-1. Signup/Login (name, email, password, area)
-2. Area-based feed (only posts from same area, case-insensitive)
-3. Post types: `normal` + `offer` (offers highlighted yellow)
-4. Like, comment, bookmark, delete posts
-5. Image uploads on posts and avatars
-6. Follow/unfollow users
-7. Explore trending posts across all areas
-8. Search users, areas, and posts
-9. Edit profile (name, area, bio, avatar)
+## Account Types (chosen at signup)
+- **Personal** → social feed, events, follow neighbours & shops, bookmarks.
+- **Business** → all of personal + shop profile (menu/products), offer listings, customer reach.
 
-## Implemented
+## Implemented (Feb 2026)
 
-### Iteration 1 (2026-02)
-- JWT auth, area-based feed, Normal/Offer posts, likes, profile with stats.
+### Iteration 1 — MVP
+JWT auth · Area-based feed · Normal/Offer posts · Likes · Profile with stats.
 
-### Iteration 2 (2026-02) — Instagram/Threads rewrite
-- Object-storage image uploads (posts + avatars) with 6MB limit + MIME validation
-- Comments system with sheet-style UI
-- Follow/unfollow with follower/following counts
-- Bookmarks / Saved posts page
-- Stories bar (neighbours in same area, gradient rings for active)
-- Explore page (trending grid across all areas)
-- Global search (users + posts, debounced 280ms)
-- Edit profile with avatar upload
-- Post deletion (author only)
-- Double-tap-to-like on images
-- Bottom navigation (Feed / Explore / Post / Saved / Profile)
-- User bios (max 180 chars)
-- Feed filter (All / Offers only)
-- Instagram-style post cards (header, image, action row, caption, comments teaser)
-- 38/38 backend pytest tests passing + all critical frontend flows verified
+### Iteration 2 — Instagram/Threads rewrite
+Image uploads · Comments · Follow/Unfollow · Bookmarks · Stories bar · Explore · Search · Edit profile · Post deletion · Double-tap-to-like · Bottom nav (Feed/Explore/Post/Saved/Profile) · User bios · Offers filter.
 
-## API Routes
+### Iteration 3 — Social + Commerce super-app
+- **Account types**: personal vs business at signup (business requires `business_name` + category)
+- **Business directory** (`/shops`): OpenStreetMap with 5 km circle + shop markers; category chips (Food/Grocery/Cafés/Retail/Services/Health/Other); hot-offers strip; distance-sorted list with 📞 call button
+- **Business detail** (`/shop/:id`): shop card with stats; menu/products grid; Follow + Call + Add-item (for owners)
+- **Products / offers**: businesses list items (name, price, category, image, `is_offer` flag); CRUD
+- **Events** (`/events`): "What's new in area" — map + cards with date, location, "I'm in" going toggle, attendees count
+- **Notifications** (`/notifications`): bell with unread badge + 30s polling; auto-created on like/comment/follow/mention; typed icons; mark-all-read on open
+- **@mentions**: parsed in posts + comments → notification sent to mentioned user
+- **Multi-image posts**: up to 6 images with prev/next carousel + counter
+- **Location**: prompt on first visit; `/users/me/location` endpoint; Haversine filtering on `/businesses`, `/products`, `/events`, `/nearby/users`
+- **Search upgrade**: now includes businesses + products + regex-escape for ReDoS safety
+- **Perf**: denormalised `followers_count` / `following_count` on user docs (no more count-per-read)
+- **Bottom nav** redesigned: Feed / Shops / Post / Events / Me
+- **31/31 iter3 backend tests + critical frontend flows verified** (100% on new suite)
+
+## API Routes (v3)
 ### Auth
-- `POST /api/auth/signup` · `POST /api/auth/login` · `GET /api/auth/me`
+`POST /auth/signup` (+ account_type, business_name, business_category, phone) · `POST /auth/login` · `GET /auth/me`
 
 ### Users
-- `PATCH /api/users/me` (name, area, bio, avatar_path)
-- `GET /api/users/{id}` · `GET /api/users/{id}/posts`
-- `POST /api/users/{id}/follow` (toggle)
-- `GET /api/users/{id}/followers` · `/following`
+`PATCH /users/me` · `POST /users/me/location` · `GET /users/{id}` · `GET /users/{id}/posts` · `POST /users/{id}/follow`
 
 ### Posts
-- `GET /api/posts` (area-filtered) · `POST /api/posts` · `DELETE /api/posts/{id}`
-- `POST /api/posts/{id}/like` · `POST /api/posts/{id}/save`
-- `GET /api/posts/{id}/comments` · `POST /api/posts/{id}/comments`
-- `GET /api/me/saved`
+`GET /posts` · `POST /posts` (image_paths array) · `DELETE /posts/{id}` · `POST /posts/{id}/like` · `/save` · `GET /me/saved`
+
+### Comments
+`GET /posts/{id}/comments` · `POST /posts/{id}/comments`
+
+### Products & Shops
+`GET /products` (nearby, radius_km, category, business_id, offers_only) · `POST /products` (business only) · `DELETE /products/{id}`
+`GET /businesses` (nearby, category, radius_km)
+
+### Events
+`GET /events` (nearby, radius_km) · `POST /events` · `POST /events/{id}/going` · `DELETE /events/{id}`
+
+### Notifications
+`GET /notifications` · `GET /notifications/unread-count` · `POST /notifications/read-all`
 
 ### Discover
-- `GET /api/explore` · `GET /api/search?q=` · `GET /api/stories`
+`GET /explore` · `GET /search?q=` (users + posts + products + businesses) · `GET /stories` · `GET /nearby/users`
 
 ### Files
-- `POST /api/upload` (multipart) · `GET /api/files/{path:path}?auth=<token>`
+`POST /upload` (multipart, 6 MB cap) · `GET /files/{path:path}?auth=<token>`
 
-## Backlog (prioritised)
+## Seed Data
+- 3 personal users (Aanya, Priya, Kabir) + 3 businesses (Brewberry Cafe, FreshCart 15, Patel's Kitchen) with real Bengaluru coords
+- 4 posts · 8 products (mix of regular + offers) · 3 upcoming events
+
+## Backlog
 **P1**
-- Notifications (likes/comments/follows) — lightweight in-app bell
-- Rich post images (multiple images / carousel)
-- Tag/mention other users (@name)
+- Order / cart flow for businesses (Zomato-style) — deferred (user chose directory-first)
+- Real-time notifications via WebSocket (replace 30s poll)
+- Event RSVP reminders
 
 **P2**
-- Suggested neighbours to follow
-- Nearby areas feed mix
-- Push notifications (web-push)
-- Activity feed / recent interactions
+- Delivery tracking / live status
+- Ratings & reviews on shops and products
+- @username handles (current: first-word-of-name match is brittle)
+- Multi-image on events + products
+- Shop banner hero image on business detail
 
 **P3**
-- Dark theme toggle
-- Email verification + password reset
-- Shareable post links (?p=<id>)
-- Post reporting + light moderation
+- Stripe integration for in-app offer redemption
+- Web-push notifications
+- Suggested shops / "people you may know"
+- Dark theme
 
-## Next Tasks
-1. Pick between: notifications, multi-image carousel, or mentions — highest-impact next
-2. Denormalise `followers_count` on user doc for faster list endpoints (perf)
-3. Escape regex input in `/api/search` (ReDoS safety)
-4. Migrate `@app.on_event` → FastAPI lifespan context
+## Tech Debt (from iter3 review)
+1. Split `server.py` (~1160 lines) into `routers/*` modules
+2. Validate file owner_id on `image_path` references in products/events (currently trust client)
+3. Batch avatar lookups in `/nearby/users` + `/businesses` (currently N+1)
+4. Update/delete 3 obsolete legacy tests (API shape changes in iter3)
+5. Migrate `@app.on_event` → FastAPI lifespan context
+6. Add counter-drift repair script for followers_count

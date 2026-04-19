@@ -1132,7 +1132,8 @@ async def on_startup():
     if await db.events.count_documents({}) == 0:
         for email, title, desc, when, loc in DEMO_EVENTS:
             user = await db.users.find_one({"email": email})
-            if not user: continue
+            if not user:
+                continue
             await db.events.insert_one({
                 "id": str(uuid.uuid4()), "user_id": user["id"], "user_name": user["name"],
                 "title": title, "description": desc,

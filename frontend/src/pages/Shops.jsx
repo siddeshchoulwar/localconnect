@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import TopBar from "@/components/TopBar";
 import BottomNav from "@/components/BottomNav";
 import NearbyMap from "@/components/NearbyMap";
@@ -137,7 +137,15 @@ export default function Shops() {
               ) : (
                 <div className="space-y-3" data-testid="shops-list">
                   {businesses.map((b) => (
-                    <Link key={b.id} to={`/shop/${b.id}`} data-testid={`shop-row-${b.id}`} className="flex items-center gap-3 bg-white border-2 border-[#111111] brut-shadow-sm p-3 brut-press">
+                    <div
+                      key={b.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/shop/${b.id}`)}
+                      onKeyDown={(e) => { if (e.key === "Enter") navigate(`/shop/${b.id}`); }}
+                      data-testid={`shop-row-${b.id}`}
+                      className="flex items-center gap-3 bg-white border-2 border-[#111111] brut-shadow-sm p-3 brut-press cursor-pointer"
+                    >
                       <Avatar name={b.business_name || b.name} path={b.shop_image_path || b.avatar_path} size={56} />
                       <div className="flex-1 min-w-0">
                         <div className="font-heading font-black text-base truncate">{b.business_name}</div>
@@ -151,11 +159,16 @@ export default function Shops() {
                         )}
                       </div>
                       {b.phone && (
-                        <a href={`tel:${b.phone}`} onClick={(e) => e.stopPropagation()} className="w-9 h-9 bg-[#FFE973] border-2 border-[#111111] flex items-center justify-center" aria-label="Call">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${b.phone}`; }}
+                          className="w-9 h-9 bg-[#FFE973] border-2 border-[#111111] flex items-center justify-center shrink-0"
+                          aria-label="Call"
+                        >
                           <Phone size={14} strokeWidth={2.75} />
-                        </a>
+                        </button>
                       )}
-                    </Link>
+                    </div>
                   ))}
                 </div>
               )}
